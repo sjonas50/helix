@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-worker-workflow
+  labels:
+    app: helix
+    component: worker-workflow
+spec:
+  replicas: {{ .Values.replicaCount.workerWorkflow }}
+  selector:
+    matchLabels:
+      app: helix
+      component: worker-workflow
+  template:
+    metadata:
+      labels:
+        app: helix
+        component: worker-workflow
+    spec:
+      containers:
+        - name: worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["uv", "run", "celery", "-A", "helix.workers.celery_app", "worker", "-Q", "workflow", "-l", "info", "-c", "4"]
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-config
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
+          resources:
+            {{- toYaml .Values.resources.worker | nindent 12 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-worker-dream
+  labels:
+    app: helix
+    component: worker-dream
+spec:
+  replicas: {{ .Values.replicaCount.workerDream }}
+  selector:
+    matchLabels:
+      app: helix
+      component: worker-dream
+  template:
+    metadata:
+      labels:
+        app: helix
+        component: worker-dream
+    spec:
+      containers:
+        - name: worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["uv", "run", "celery", "-A", "helix.workers.celery_app", "worker", "-Q", "dream", "-l", "info", "-c", "2"]
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-config
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
+          resources:
+            {{- toYaml .Values.resources.worker | nindent 12 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-beat
+  labels:
+    app: helix
+    component: beat
+spec:
+  replicas: 1  # Must be exactly 1
+  selector:
+    matchLabels:
+      app: helix
+      component: beat
+  template:
+    metadata:
+      labels:
+        app: helix
+        component: beat
+    spec:
+      containers:
+        - name: beat
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["uv", "run", "celery", "-A", "helix.workers.celery_app", "beat", "-l", "info"]
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-config
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi

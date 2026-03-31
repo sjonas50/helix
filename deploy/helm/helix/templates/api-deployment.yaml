@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    app: helix
+    component: api
+spec:
+  replicas: {{ .Values.replicaCount.api }}
+  selector:
+    matchLabels:
+      app: helix
+      component: api
+  template:
+    metadata:
+      labels:
+        app: helix
+        component: api
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-config
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources.api | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-api
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 8000
+  selector:
+    app: helix
+    component: api

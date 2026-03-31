@@ -4,11 +4,13 @@ from fastapi import FastAPI
 
 from helix.api.routes import agents, approvals, audit, integrations, memory, orgs, workflows, ws
 from helix.config import get_settings
+from helix.observability import init_observability
 
 
 def create_app() -> FastAPI:
     """Application factory for the Helix API."""
     settings = get_settings()
+    init_observability(settings)
 
     app = FastAPI(
         title="Helix",

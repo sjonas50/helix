@@ -15,6 +15,37 @@ services:
       timeout: 5s
       retries: 3
 
+  # Celery worker — high-priority workflow queue
+  worker-workflow:
+    build: .
+    command: uv run celery -A helix.workers.celery_app worker -Q workflow -l info -c 4
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Celery worker — low-priority dream cycle queue (separate pool per arch decision #10)
+  worker-dream:
+    build: .
+    command: uv run celery -A helix.workers.celery_app worker -Q dream -l info -c 2
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Celery beat — scheduler for dream cycle triggers (every 15 min)
+  beat:
+    build: .
+    command: uv run celery -A helix.workers.celery_app beat -l info
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+
   postgres:
     image: pgvector/pgvector:pg16
     environment:
@@ -35,6 +66,9 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -43,3 +77,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:

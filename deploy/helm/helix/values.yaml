@@ -1,0 +1,54 @@
+# Helix Helm values
+replicaCount:
+  api: 2
+  workerWorkflow: 2
+  workerDream: 1
+  beat: 1  # Must be exactly 1
+
+image:
+  repository: helix
+  tag: latest
+  pullPolicy: IfNotPresent
+
+env:
+  ENVIRONMENT: production
+  DATABASE_URL: postgresql+asyncpg://helix_app:changeme@postgres:5432/helix
+  REDIS_URL: redis://redis:6379/0
+  DEFAULT_PRIMARY_MODEL: claude-sonnet-4-6
+  DEFAULT_FALLBACK_MODEL: claude-haiku-4-5
+  COMPACTION_THRESHOLD_PCT: "83.5"
+  DREAM_CYCLE_ENABLED: "true"
+  SPECULATION_ENABLED: "true"
+  LOG_LEVEL: INFO
+
+secrets:
+  SECRET_KEY: ""  # Set via --set or external secret
+  ANTHROPIC_API_KEY: ""
+  OPENAI_API_KEY: ""
+  WORKOS_API_KEY: ""
+  WORKOS_CLIENT_ID: ""
+  COMPOSIO_API_KEY: ""
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: nginx
+  host: helix.example.com
+  tls: true
+
+resources:
+  api:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: 1000m, memory: 1Gi }
+  worker:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: 500m, memory: 1Gi }
+
+postgresql:
+  external: true  # Use external PostgreSQL (pgvector required)
+
+redis:
+  external: true  # Use external Redis
