@@ -8,11 +8,14 @@ Adapted from Claude Code's memory system:
 - Org-scoped memory with access control per role
 """
 
+import uuid
 from datetime import datetime
 from uuid import UUID, uuid4
 
 import structlog
 from pydantic import BaseModel, Field
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 
@@ -151,3 +154,101 @@ def merge_memories(
     )
 
     return merged
+
+
+async def db_create_memory(
+    session: AsyncSession,
+    entry: MemoryEntry,
+    embedding: list[float] | None = None,
+) -> uuid.UUID:
+    """Insert a memory record into the database with optional embedding."""
+    await session.execute(
+        text(
+            """INSERT INTO memory_records
+            (id, org_id, user_id, agent_id, topic, content, tags, access_level,
+             allowed_roles, source_session_ids, version, embedding)
+            VALUES (:id, :org_id, :user_id, :agent_id, :topic, :content,
+                    :tags, :access_level, :allowed_roles, :source_session_ids, :version,
+                    :embedding::vector)"""
+        ),
+        {
+            "id": entry.id,
+            "org_id": entry.org_id,
+            "user_id": entry.user_id,
+            "agent_id": entry.agent_id,
+            "topic": entry.topic,
+            "content": entry.content,
+            "tags": entry.tags,
+            "access_level": entry.access_level,
+            "allowed_roles": entry.allowed_roles,
+            "source_session_ids": (
+                [str(s) for s in entry.source_session_ids]
+                if entry.source_session_ids
+                else []
+            ),
+            "version": entry.version,
+            "embedding": str(embedding) if embedding else None,
+        },
+    )
+    logger.info("memory.db_created", memory_id=str(entry.id), topic=entry.topic)
+    return entry.id
+
+
+async def db_retrieve_relevant(
+    session: AsyncSession,
+    org_id: uuid.UUID,
+    query_embedding: list[float],
+    limit: int = 10,
+    requester_roles: list[str] | None = None,
+) -> list[dict]:
+    """Semantic search via pgvector cosine similarity."""
+    embedding_str = str(query_embedding)
+
+    sql = """
+        SELECT id, topic, content, tags, access_level, allowed_roles, version, created_at,
+               1 - (embedding <=> :embedding::vector) AS similarity
+        FROM memory_records
+        WHERE org_id = :org_id AND valid_until IS NULL AND embedding IS NOT NULL
+        ORDER BY embedding <=> :embedding::vector
+        LIMIT :limit
+    """
+    result = await session.execute(
+        text(sql),
+        {"org_id": org_id, "embedding": embedding_str, "limit": limit},
+    )
+    rows = result.fetchall()
+
+    results = []
+    for row in rows:
+        record = {
+            "id": row[0],
+            "topic": row[1],
+            "content": row[2],
+            "tags": row[3],
+            "access_level": row[4],
+            "allowed_roles": row[5],
+            "version": row[6],
+            "created_at": row[7],
+            "similarity": float(row[8]),
+        }
+        # Access control filter
+        if (
+            requester_roles
+            and record["access_level"] != "PUBLIC"
+            and not set(requester_roles or []) & set(record["allowed_roles"] or [])
+        ):
+            continue
+        results.append(record)
+
+    return results
+
+
+async def db_invalidate_memory(
+    session: AsyncSession, memory_id: uuid.UUID
+) -> None:
+    """Soft-delete a memory record by setting valid_until."""
+    await session.execute(
+        text("UPDATE memory_records SET valid_until = now() WHERE id = :id"),
+        {"id": memory_id},
+    )
+    logger.info("memory.db_invalidated", memory_id=str(memory_id))

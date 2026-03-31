@@ -10,9 +10,11 @@ Key improvements over Claude Code:
 
 import uuid
 from datetime import datetime
-from typing import Any
+from operator import add
+from typing import Annotated, Any, TypedDict
 
 import structlog
+from langgraph.graph import END, START, StateGraph
 
 from helix.orchestration.state import (
     AgentRole,
@@ -171,3 +173,89 @@ def validate_hierarchy_depth(
     be overridden by prompt injection (arch decision #7).
     """
     return current_depth < max_depth
+
+
+# ---------------------------------------------------------------------------
+# LangGraph StateGraph wiring
+# ---------------------------------------------------------------------------
+
+
+class GraphState(TypedDict, total=False):
+    """LangGraph state - must be TypedDict, not Pydantic."""
+
+    phase: str
+    workflow_id: str
+    org_id: str
+    messages: Annotated[list[dict], add]  # append-only via reducer
+    errors: Annotated[list[str], add]
+    artifacts: Annotated[list[dict], add]
+    pending_approval: dict | None
+
+
+def _plan(state: GraphState) -> dict:
+    """Planning node wrapper for LangGraph."""
+    return {"phase": "EXECUTING"}
+
+
+def _execute(state: GraphState) -> dict:
+    """Execution node wrapper."""
+    return {"phase": "EXECUTING"}
+
+
+def _approve(state: GraphState) -> dict:
+    """Approval node wrapper."""
+    return {"phase": "AWAITING_APPROVAL"}
+
+
+def _verify(state: GraphState) -> dict:
+    """Verification node wrapper."""
+    return {"phase": "COMPLETE"}
+
+
+def _fail(state: GraphState) -> dict:
+    """Failure terminal node."""
+    return {"phase": "FAILED"}
+
+
+def _route_after_execute(state: GraphState) -> str:
+    """Conditional router after execution."""
+    if state.get("errors"):
+        return "fail"
+    if state.get("pending_approval"):
+        return "approve"
+    return "verify"
+
+
+def _route_after_approve(state: GraphState) -> str:
+    """Route after approval decision."""
+    if state.get("errors"):
+        return "fail"
+    return "execute"
+
+
+def create_workflow_graph():
+    """Create and compile the Helix workflow StateGraph."""
+    graph = StateGraph(GraphState)
+
+    graph.add_node("plan", _plan)
+    graph.add_node("execute", _execute)
+    graph.add_node("approve", _approve)
+    graph.add_node("verify", _verify)
+    graph.add_node("fail", _fail)
+
+    graph.add_edge(START, "plan")
+    graph.add_edge("plan", "execute")
+    graph.add_conditional_edges(
+        "execute",
+        _route_after_execute,
+        {"verify": "verify", "approve": "approve", "fail": "fail"},
+    )
+    graph.add_conditional_edges(
+        "approve",
+        _route_after_approve,
+        {"execute": "execute", "fail": "fail"},
+    )
+    graph.add_edge("verify", END)
+    graph.add_edge("fail", END)
+
+    return graph.compile()
