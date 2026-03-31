@@ -38,8 +38,10 @@ class TestRequiresApproval:
 
     def test_explicit_approval_flag(self) -> None:
         tool = IntegrationTool(
-            name="safe_but_flagged", description="test",
-            risk_level="LOW", requires_approval=True,
+            name="safe_but_flagged",
+            description="test",
+            risk_level="LOW",
+            requires_approval=True,
         )
         assert requires_approval(tool)
 

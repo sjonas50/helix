@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 
-from helix.api.routes import approvals, memory, orgs, workflows
+from helix.api.routes import agents, approvals, audit, integrations, memory, orgs, workflows, ws
 from helix.config import get_settings
 
 
@@ -22,6 +22,10 @@ def create_app() -> FastAPI:
     app.include_router(workflows.router, prefix="/api/v1")
     app.include_router(memory.router, prefix="/api/v1")
     app.include_router(approvals.router, prefix="/api/v1")
+    app.include_router(agents.router, prefix="/api/v1")
+    app.include_router(integrations.router, prefix="/api/v1")
+    app.include_router(audit.router, prefix="/api/v1")
+    app.include_router(ws.router)
 
     @app.get("/health")
     async def health() -> dict[str, str]:
