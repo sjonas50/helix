@@ -186,7 +186,7 @@ curl http://localhost:8000/health
 
 # Run the test suite
 uv run pytest tests/ -v
-# 281 passed
+# 282 passed
 ```
 
 ### Full stack with Docker Compose
@@ -221,7 +221,7 @@ docker compose up -d
 | `POST` | `/api/v1/approvals/{id}/decide` | Yes | Approve/reject action |
 | `GET` | `/api/v1/audit/events` | Yes | Query audit trail |
 | `GET` | `/api/v1/audit/integrity` | Yes | Verify audit chain |
-| `WS` | `/api/v1/ws/{org_id}` | — | Real-time notifications |
+| `WS` | `/api/v1/ws?token=<jwt>` | Yes | Real-time notifications (org from JWT) |
 
 ## Project Structure
 
@@ -270,7 +270,7 @@ helix/
 │       ├── models.py             # 19 SQLAlchemy ORM models
 │       ├── engine.py             # Async engine singleton
 │       └── migrations/           # Alembic (pgvector + RLS)
-├── tests/                         # 281 tests across 20 files
+├── tests/                         # 282 tests across 20 files
 ├── deploy/helm/helix/             # Kubernetes Helm chart
 ├── scripts/load_test.py           # Async load testing
 ├── docker-compose.yml             # 6 services
