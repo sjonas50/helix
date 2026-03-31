@@ -1,6 +1,5 @@
 """Tests for Helix configuration."""
 
-import os
 
 import pytest
 
@@ -53,5 +52,5 @@ class TestSettings:
         assert isinstance(settings, Settings)
 
     def test_secret_key_min_length(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="String should have at least 16 characters"):
             Settings(secret_key="short")
