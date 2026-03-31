@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppShell } from "@/components/shared/AppShell";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useAuth } from "@/lib/auth/useAuth";
 
 const queryClient = new QueryClient({
@@ -41,7 +42,9 @@ export default function DashboardLayout({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell>{children}</AppShell>
+      <ErrorBoundary>
+        <AppShell>{children}</AppShell>
+      </ErrorBoundary>
     </QueryClientProvider>
   );
 }
