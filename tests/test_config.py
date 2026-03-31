@@ -10,7 +10,7 @@ class TestSettings:
     """Test configuration loading from environment."""
 
     def test_default_settings(self) -> None:
-        settings = Settings()
+        settings = Settings(_env_file=None)
         assert settings.environment == Environment.DEVELOPMENT
         assert settings.debug is False
         assert settings.compaction_threshold_pct == 83.5
