@@ -15,6 +15,8 @@ from uuid import UUID, uuid4
 import structlog
 from pydantic import BaseModel, Field
 
+from helix.utils import utcnow
+
 logger = structlog.get_logger()
 
 
@@ -43,14 +45,14 @@ class ApprovalRequest(BaseModel):
     decision_reason: str = ""
     sla_deadline: datetime | None = None
     escalated_to: list[UUID] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utcnow)
     decided_at: datetime | None = None
 
     def is_expired(self) -> bool:
         """Check if the SLA deadline has passed."""
         if self.sla_deadline is None:
             return False
-        return datetime.now() > self.sla_deadline
+        return utcnow() > self.sla_deadline
 
 
 def create_approval_request(
@@ -69,7 +71,7 @@ def create_approval_request(
     the request is auto-escalated to higher-authority approvers.
     """
     policy = escalation_policy or EscalationPolicy()
-    sla_deadline = datetime.now() + timedelta(minutes=policy.sla_minutes)
+    sla_deadline = utcnow() + timedelta(minutes=policy.sla_minutes)
 
     request = ApprovalRequest(
         workflow_id=workflow_id,
@@ -112,7 +114,7 @@ def process_decision(
     request.status = decision
     request.decided_by = decided_by
     request.decision_reason = reason
-    request.decided_at = datetime.now()
+    request.decided_at = utcnow()
 
     logger.info(
         "approval.decided",

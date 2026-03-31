@@ -1,6 +1,7 @@
 """Helix platform configuration loaded from environment variables."""
 
 from enum import StrEnum
+from functools import lru_cache
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -84,6 +85,7 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: str | None = None
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Factory function for settings singleton."""
+    """Cached settings singleton — parsed once, reused everywhere."""
     return Settings()

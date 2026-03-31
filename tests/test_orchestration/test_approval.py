@@ -1,7 +1,7 @@
 """Tests for human-in-the-loop approval system."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -101,7 +101,7 @@ class TestEscalation:
             risk_level="MEDIUM",
         )
         # Force SLA expiry
-        req.sla_deadline = datetime.now() - timedelta(minutes=1)
+        req.sla_deadline = datetime.now(tz=UTC) - timedelta(minutes=1)
         assert check_escalation(req)
         assert req.status == "ESCALATED"
 
@@ -114,7 +114,7 @@ class TestEscalation:
             risk_level="MEDIUM",
         )
         process_decision(req, "APPROVED", uuid.uuid4())
-        req.sla_deadline = datetime.now() - timedelta(minutes=1)
+        req.sla_deadline = datetime.now(tz=UTC) - timedelta(minutes=1)
         assert not check_escalation(req)
 
 

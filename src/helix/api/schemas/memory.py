@@ -13,7 +13,7 @@ class MemoryCreate(BaseModel):
     """Request to create a memory record."""
 
     topic: str = Field(min_length=1, max_length=256)
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=65536)  # 64KB max
     tags: list[str] = Field(default_factory=list)
     access_level: AccessLevel = "PUBLIC"
     allowed_roles: list[str] = Field(default_factory=list)

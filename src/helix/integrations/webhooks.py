@@ -60,9 +60,23 @@ TRIGGER_MAP: dict[str, list[str]] = {
 }
 
 
-async def process_webhook(event: WebhookEvent) -> WebhookResult:
-    """Process an inbound webhook event and optionally trigger a workflow."""
+async def process_webhook(
+    event: WebhookEvent, webhook_secret: str | None = None
+) -> WebhookResult:
+    """Process an inbound webhook event and optionally trigger a workflow.
+
+    If webhook_secret is provided and the event has a signature, verify it first.
+    """
     logger.info("webhook.received", provider=event.provider, event_type=event.event_type)
+
+    # Verify signature if provided
+    if webhook_secret and event.signature:
+        import json
+
+        payload_bytes = json.dumps(event.payload, sort_keys=True).encode()
+        if not verify_signature(payload_bytes, event.signature, webhook_secret):
+            logger.warning("webhook.signature_invalid", provider=event.provider)
+            return WebhookResult(accepted=False, reason="Invalid webhook signature")
 
     supported_events = TRIGGER_MAP.get(event.provider, [])
     if event.event_type not in supported_events:

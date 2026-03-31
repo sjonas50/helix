@@ -9,7 +9,6 @@ Key improvements over Claude Code:
 """
 
 import uuid
-from datetime import datetime
 from operator import add
 from typing import Annotated, Any, TypedDict
 
@@ -21,6 +20,7 @@ from helix.orchestration.state import (
     WorkflowPhase,
     WorkflowState,
 )
+from helix.utils import utcnow
 
 logger = structlog.get_logger()
 
@@ -44,7 +44,7 @@ def plan_node(state: WorkflowState) -> dict[str, Any]:
     return {
         "phase": WorkflowPhase.EXECUTING,
         "coordinator_agent_id": coordinator_id,
-        "updated_at": datetime.now(),
+        "updated_at": utcnow(),
     }
 
 
@@ -67,7 +67,7 @@ def execute_node(state: WorkflowState) -> dict[str, Any]:
     # 4. Routes to approval if HIGH/CRITICAL actions detected
 
     return {
-        "updated_at": datetime.now(),
+        "updated_at": utcnow(),
     }
 
 
@@ -90,7 +90,7 @@ def approval_node(state: WorkflowState) -> dict[str, Any]:
 
     return {
         "phase": WorkflowPhase.AWAITING_APPROVAL,
-        "updated_at": datetime.now(),
+        "updated_at": utcnow(),
     }
 
 
@@ -108,7 +108,7 @@ def verify_node(state: WorkflowState) -> dict[str, Any]:
 
     return {
         "phase": WorkflowPhase.COMPLETE,
-        "updated_at": datetime.now(),
+        "updated_at": utcnow(),
     }
 
 
@@ -139,7 +139,7 @@ def handle_failure(state: WorkflowState) -> dict[str, Any]:
     )
     return {
         "phase": WorkflowPhase.FAILED,
-        "updated_at": datetime.now(),
+        "updated_at": utcnow(),
     }
 
 
@@ -162,17 +162,7 @@ def create_worker_config(
     }
 
 
-def validate_hierarchy_depth(
-    current_depth: int, max_depth: int = 2
-) -> bool:
-    """Check if spawning a sub-agent would exceed hierarchy limit.
-
-    Claude Code hard-codes single-level: subagents cannot spawn sub-subagents.
-    Helix allows configurable depth (default 2, max 4) per workflow template.
-    Enforced here in the orchestration engine, NOT in the agent prompt — cannot
-    be overridden by prompt injection (arch decision #7).
-    """
-    return current_depth < max_depth
+# validate_hierarchy_depth lives in workers.py — single source of truth
 
 
 # ---------------------------------------------------------------------------

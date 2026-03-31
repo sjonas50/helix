@@ -18,6 +18,7 @@ Ours: configurable min_hours + min_sessions + Redis distributed lock
 """
 
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID, uuid4
 
 import structlog
@@ -25,11 +26,12 @@ from pydantic import BaseModel, Field
 
 from helix.memory.pii import strip_pii
 from helix.memory.store import MemoryEntry, create_memory, invalidate_memory
+from helix.utils import utcnow
 
 logger = structlog.get_logger()
 
 
-class DreamPhase:
+class DreamPhase(StrEnum):
     """Dream cycle phase names matching Claude Code's autoDream."""
 
     ORIENT = "ORIENT"
@@ -68,7 +70,7 @@ class DreamRunResult(BaseModel):
     records_pruned: int = 0
     tokens_used: int = 0
     errors: list[str] = Field(default_factory=list)
-    started_at: datetime = Field(default_factory=datetime.now)
+    started_at: datetime = Field(default_factory=utcnow)
     completed_at: datetime | None = None
 
 
@@ -83,7 +85,7 @@ class SessionSignal(BaseModel):
     signal_type: str  # correction | decision | theme | instruction
     content: str
     confidence: float = 0.0
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=utcnow)
 
 
 def should_trigger_dream(
@@ -105,7 +107,7 @@ def should_trigger_dream(
 
     # Gate 1: Time since last run
     if last_run_at is not None:
-        hours_since = (datetime.now() - last_run_at).total_seconds() / 3600
+        hours_since = (utcnow() - last_run_at).total_seconds() / 3600
         if hours_since < cfg.min_hours_between_runs:
             return False
 
@@ -191,9 +193,10 @@ def consolidate_phase(
         # Strip PII before storing
         cleaned_content, redactions = strip_pii(combined_content, cfg.pii_strip_enabled)
 
-        # Enforce max bytes per record
-        if len(cleaned_content.encode()) > cfg.max_bytes_per_record:
-            cleaned_content = cleaned_content[: cfg.max_bytes_per_record]
+        # Enforce max bytes per record (UTF-8 safe truncation)
+        encoded = cleaned_content.encode("utf-8")
+        if len(encoded) > cfg.max_bytes_per_record:
+            cleaned_content = encoded[: cfg.max_bytes_per_record].decode("utf-8", errors="ignore")
 
         # Check if topic already exists
         existing = topic_index.get(signal_type, [])
@@ -298,7 +301,7 @@ def run_dream_cycle(
 
         # Complete
         result.phase = DreamPhase.COMPLETE
-        result.completed_at = datetime.now()
+        result.completed_at = utcnow()
 
         logger.info(
             "dream.complete",
@@ -311,7 +314,7 @@ def run_dream_cycle(
     except Exception as e:
         result.phase = DreamPhase.FAILED
         result.errors.append(str(e))
-        result.completed_at = datetime.now()
+        result.completed_at = utcnow()
         logger.error("dream.failed", org_id=str(org_id), error=str(e))
 
     return result

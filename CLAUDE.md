@@ -3,7 +3,9 @@
 ## What This Is
 Multi-tenant platform providing AI agent orchestration and institutional memory for enterprise customers. Agents automate workflows across SaaS tools (Salesforce, Jira, Slack, SAP) with RBAC, audit trails, and human-in-the-loop approval gates.
 
-Architecture is directly informed by Anthropic's Claude Code (Tengu) production system. See `docs/architecture.md` for the full mapping.
+Architecture is directly informed by Anthropic's Claude Code (Tengu) production system (https://github.com/Kuberwastaken/claude-code). reference the claude code repo for code, architecture, and prompt expamples.  Think deeply on implementations and utilize integrations from referenced codebase where possible.
+
+See `docs/architecture.md` for the full mapping.
 
 ## Stack
 - **Python 3.11+** with `uv` for package management

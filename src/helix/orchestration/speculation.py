@@ -15,6 +15,8 @@ from uuid import UUID, uuid4
 import structlog
 from pydantic import BaseModel, Field
 
+from helix.utils import utcnow
+
 logger = structlog.get_logger()
 
 
@@ -46,7 +48,7 @@ class SpeculativeExecution(BaseModel):
     confidence_score: float = 0.0
     token_cost: int = 0
     status: str = "PENDING"  # PENDING | READY | APPLIED | DISCARDED
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utcnow)
     resolved_at: datetime | None = None
 
 
@@ -121,7 +123,7 @@ def resolve_speculation(
     """
     if actual_decision == speculation.assumed_decision:
         speculation.status = "APPLIED"
-        speculation.resolved_at = datetime.now()
+        speculation.resolved_at = utcnow()
         logger.info(
             "speculation.applied",
             speculation_id=str(speculation.id),
@@ -130,7 +132,7 @@ def resolve_speculation(
         return "applied"
     else:
         speculation.status = "DISCARDED"
-        speculation.resolved_at = datetime.now()
+        speculation.resolved_at = utcnow()
         logger.info(
             "speculation.discarded",
             speculation_id=str(speculation.id),

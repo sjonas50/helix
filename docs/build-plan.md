@@ -6,6 +6,8 @@
 
 ---
 
+Architecture is directly informed by Anthropic's Claude Code (Tengu) production system (https://github.com/Kuberwastaken/claude-code). reference the claude code repo for code, architecture, and prompt expamples.  Think deeply on implementations and utilize integrations from referenced codebase where possible.
+
 ## Phase 0: Scaffold
 **Goal:** Project structure, dependencies, config, linting, CI-ready skeleton.
 **Complexity:** S

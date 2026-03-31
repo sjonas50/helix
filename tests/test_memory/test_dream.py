@@ -1,7 +1,7 @@
 """Tests for Dream Cycle — 4-phase memory consolidation."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from helix.memory.dream import (
     DreamPhase,
@@ -22,20 +22,20 @@ class TestShouldTriggerDream:
         assert should_trigger_dream(last_run_at=None, sessions_since_last_run=5)
 
     def test_does_not_trigger_too_soon(self) -> None:
-        recent = datetime.now() - timedelta(hours=12)
+        recent = datetime.now(tz=UTC) - timedelta(hours=12)
         assert not should_trigger_dream(last_run_at=recent, sessions_since_last_run=10)
 
     def test_does_not_trigger_too_few_sessions(self) -> None:
-        old = datetime.now() - timedelta(hours=48)
+        old = datetime.now(tz=UTC) - timedelta(hours=48)
         assert not should_trigger_dream(last_run_at=old, sessions_since_last_run=2)
 
     def test_triggers_when_both_gates_pass(self) -> None:
-        old = datetime.now() - timedelta(hours=48)
+        old = datetime.now(tz=UTC) - timedelta(hours=48)
         assert should_trigger_dream(last_run_at=old, sessions_since_last_run=10)
 
     def test_custom_config(self) -> None:
         config = DreamTriggerConfig(min_hours_between_runs=1, min_sessions_between_runs=1)
-        recent = datetime.now() - timedelta(hours=2)
+        recent = datetime.now(tz=UTC) - timedelta(hours=2)
         assert should_trigger_dream(last_run_at=recent, sessions_since_last_run=1, config=config)
 
 
@@ -56,7 +56,7 @@ class TestOrientPhase:
         org = uuid.uuid4()
         active = create_memory(org_id=org, topic="a", content="active")
         stale = create_memory(org_id=org, topic="b", content="stale")
-        stale.valid_until = datetime.now()
+        stale.valid_until = datetime.now(tz=UTC)
 
         index = orient_phase([active, stale])
         assert len(index) == 1
@@ -144,7 +144,7 @@ class TestPrunePhase:
         records = []
         for i in range(10):
             entry = create_memory(org_id=org, topic=f"t{i}", content=f"c{i}")
-            entry.valid_from = datetime.now() - timedelta(days=10 - i)
+            entry.valid_from = datetime.now(tz=UTC) - timedelta(days=10 - i)
             records.append(entry)
 
         pruned = prune_phase(records, max_records=7)

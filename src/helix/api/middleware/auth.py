@@ -46,10 +46,11 @@ async def get_current_user(
     )
 
 
-async def require_roles(*required_roles: str):
+def require_roles(*required_roles: str):
     """Factory for role-checking dependencies.
 
     Usage: Depends(require_roles("admin", "operator"))
+    Returns a FastAPI dependency function (not a coroutine).
     """
     async def _check(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
         if not any(role in user.roles for role in required_roles):

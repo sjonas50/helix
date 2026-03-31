@@ -23,6 +23,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from helix.config import get_settings
+from helix.utils import utcnow
 
 logger = structlog.get_logger()
 
@@ -126,7 +127,7 @@ class CircuitBreaker(BaseModel):
     def record_failure(self) -> None:
         """Record a failure and potentially open the circuit."""
         self.consecutive_failures += 1
-        self.last_failure_at = datetime.now()
+        self.last_failure_at = utcnow()
         if self.consecutive_failures >= self.max_failures:
             self.is_open = True
             logger.warning(
@@ -146,7 +147,7 @@ class CircuitBreaker(BaseModel):
             return True
         # Check if cooldown has elapsed
         if self.last_failure_at is not None:
-            elapsed = (datetime.now() - self.last_failure_at).total_seconds()
+            elapsed = (utcnow() - self.last_failure_at).total_seconds()
             if elapsed >= self.cooldown_seconds:
                 self.is_open = False  # Half-open: try one request
                 return True
@@ -174,7 +175,7 @@ class TokenUsageTracker(BaseModel):
     cost_center: str | None = None
     fallback_occurred: bool = False
     fallback_reason: str | None = None
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=utcnow)
 
 
 def calculate_cost(

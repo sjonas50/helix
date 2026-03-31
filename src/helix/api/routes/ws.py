@@ -1,9 +1,13 @@
-"""WebSocket endpoint for real-time approval notifications and workflow status."""
+"""WebSocket endpoint for real-time approval notifications and workflow status.
 
-import contextlib
+Requires JWT authentication via query parameter (WebSocket doesn't support
+Authorization headers in browser clients).
+"""
 
 import structlog
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+
+from helix.auth.tokens import decode_token, validate_token_claims
 
 logger = structlog.get_logger()
 
@@ -14,7 +18,7 @@ class ConnectionManager:
     """Manages active WebSocket connections per org."""
 
     def __init__(self) -> None:
-        self.active_connections: dict[str, list[WebSocket]] = {}  # org_id -> connections
+        self.active_connections: dict[str, list[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, org_id: str) -> None:
         await websocket.accept()
@@ -30,24 +34,41 @@ class ConnectionManager:
     async def broadcast_to_org(self, org_id: str, message: dict) -> None:
         """Send message to all connections for an org."""
         for conn in self.active_connections.get(org_id, []):
-            with contextlib.suppress(Exception):
+            try:
                 await conn.send_json(message)
+            except Exception:
+                logger.warning("ws.broadcast_failed", org_id=org_id)
 
 
 manager = ConnectionManager()
 
 
-@router.websocket("/api/v1/ws/{org_id}")
-async def websocket_endpoint(websocket: WebSocket, org_id: str) -> None:
-    """WebSocket for real-time approval notifications and workflow status.
+@router.websocket("/api/v1/ws")
+async def websocket_endpoint(websocket: WebSocket, token: str | None = None) -> None:
+    """Authenticated WebSocket for real-time notifications.
 
-    In production, also subscribes to Redis pub/sub for the org's channel.
+    Connect with: ws://host/api/v1/ws?token=<jwt>
+    The token is validated and org_id is extracted from claims.
     """
+    if not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
+        return
+
+    try:
+        claims = decode_token(token)
+        is_valid, error = validate_token_claims(claims)
+        if not is_valid:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=error)
+            return
+    except ValueError:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
+        return
+
+    org_id = claims.org_id
     await manager.connect(websocket, org_id)
     try:
         while True:
             data = await websocket.receive_json()
-            # Echo back for now; in production, handle subscription requests
             await websocket.send_json({"type": "ack", "data": data})
     except WebSocketDisconnect:
         manager.disconnect(websocket, org_id)

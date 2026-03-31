@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from helix.utils import utcnow
+
 logger = structlog.get_logger()
 
 
@@ -38,7 +40,7 @@ class MemoryEntry(BaseModel):
     allowed_roles: list[str] = Field(default_factory=list)
     embedding: list[float] | None = None  # 1536-dim vector
     version: int = 1
-    valid_from: datetime = Field(default_factory=datetime.now)
+    valid_from: datetime = Field(default_factory=utcnow)
     valid_until: datetime | None = None
     source_session_ids: list[UUID] = Field(default_factory=list)
 
@@ -110,7 +112,7 @@ def invalidate_memory(entry: MemoryEntry) -> MemoryEntry:
     Claude Code's Prune phase deletes files. We soft-delete via valid_until
     to preserve the audit trail and support time-travel queries.
     """
-    entry.valid_until = datetime.now()
+    entry.valid_until = utcnow()
     logger.info(
         "memory.invalidated",
         memory_id=str(entry.id),

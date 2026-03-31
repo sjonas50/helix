@@ -1,6 +1,6 @@
 """Tests for LLM gateway — fallback, circuit breaker, cost calculation."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from helix.llm.gateway import (
     CircuitBreaker,
@@ -65,7 +65,7 @@ class TestCircuitBreaker:
         cb.record_failure()
         assert not cb.should_allow()
         # Simulate cooldown elapsed
-        cb.last_failure_at = datetime.now() - timedelta(seconds=61)
+        cb.last_failure_at = datetime.now(tz=UTC) - timedelta(seconds=61)
         assert cb.should_allow()
 
 
@@ -82,7 +82,7 @@ class TestSelectModel:
             fallback_chain=["claude-haiku-4-5"],
         )
         breakers = {
-            "anthropic": CircuitBreaker(provider="anthropic", is_open=True, last_failure_at=datetime.now()),
+            "anthropic": CircuitBreaker(provider="anthropic", is_open=True, last_failure_at=datetime.now(tz=UTC)),
         }
         # Both models are anthropic, so both are affected by the breaker
         # This tests the circuit breaker integration
@@ -100,7 +100,7 @@ class TestSelectModel:
             "anthropic": CircuitBreaker(
                 provider="anthropic",
                 is_open=True,
-                last_failure_at=datetime.now(),
+                last_failure_at=datetime.now(tz=UTC),
                 cooldown_seconds=9999,
             ),
         }

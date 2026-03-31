@@ -14,6 +14,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from helix.utils import utcnow
+
 
 class WorkflowPhase(StrEnum):
     """Workflow lifecycle phases.
@@ -50,7 +52,7 @@ class AgentMessage(BaseModel):
     recipient_id: UUID | None = None  # None = broadcast
     message_type: str
     payload: dict[str, Any]
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=utcnow)
 
 
 class ApprovalContext(BaseModel):
@@ -111,8 +113,8 @@ class WorkflowState(BaseModel):
     token_usage: TokenUsage = Field(default_factory=TokenUsage)
     artifacts: list[dict[str, Any]] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
 
     def is_terminal(self) -> bool:
         """Check if workflow is in a terminal state."""

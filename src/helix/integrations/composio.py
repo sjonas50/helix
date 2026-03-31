@@ -57,5 +57,8 @@ async def execute_composio_tool(
 
 async def initiate_oauth(provider: str, org_id: str, redirect_uri: str) -> str:
     """Initiate OAuth flow for connecting an integration via Composio."""
+    from urllib.parse import quote, urlencode
+
     logger.info("composio.oauth_initiate", provider=provider, org_id=org_id)
-    return f"https://app.composio.dev/oauth/{provider}?org_id={org_id}&redirect_uri={redirect_uri}"
+    params = urlencode({"org_id": org_id, "redirect_uri": redirect_uri})
+    return f"https://app.composio.dev/oauth/{quote(provider)}?{params}"

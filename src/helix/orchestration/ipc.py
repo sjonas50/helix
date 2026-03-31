@@ -1,5 +1,6 @@
 """Database-backed inter-agent messaging via PostgreSQL + Redis pub/sub."""
 
+import json
 from uuid import UUID, uuid4
 
 import structlog
@@ -32,7 +33,7 @@ async def send_message(
             "sender_id": sender_id,
             "recipient_id": recipient_id,
             "message_type": message_type,
-            "payload": str(payload).replace("'", '"'),
+            "payload": json.dumps(payload, default=str),
         },
     )
     logger.info("ipc.message_sent", msg_id=str(msg_id), type=message_type)
