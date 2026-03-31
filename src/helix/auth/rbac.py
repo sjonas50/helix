@@ -74,12 +74,16 @@ def has_permission(
                 return True
             # Exact match
             if perm.resource == resource and perm.action in (action, "*"):
-                # Check conditions
+                # Check conditions if both sides have them
                 if conditions and perm.conditions:
+                    conditions_met = True
                     for key, value in conditions.items():
                         allowed = perm.conditions.get(key, [])
                         if allowed and value not in allowed:
-                            continue
+                            conditions_met = False
+                            break
+                    if not conditions_met:
+                        continue  # This permission doesn't match; try next
                 return True
     return False
 

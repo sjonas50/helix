@@ -1,28 +1,45 @@
-"""Async SQLAlchemy engine and session factory."""
+"""Async SQLAlchemy engine and session factory.
+
+Module-level singleton to avoid creating a new engine/pool per request.
+"""
 
 from collections.abc import AsyncGenerator
+from functools import lru_cache
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from helix.config import get_settings
 
 
-def create_engine() -> tuple[object, async_sessionmaker[AsyncSession]]:
-    """Create async engine and session factory."""
+@lru_cache(maxsize=1)
+def get_engine() -> AsyncEngine:
+    """Create or return the singleton async engine."""
     settings = get_settings()
-    engine = create_async_engine(
+    return create_async_engine(
         settings.database_url,
         echo=settings.debug,
         pool_size=20,
         max_overflow=10,
     )
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
-    return engine, session_factory
+
+
+@lru_cache(maxsize=1)
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    """Create or return the singleton session factory."""
+    return async_sessionmaker(get_engine(), expire_on_commit=False)
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency for database sessions."""
-    _, session_factory = create_engine()
+    """FastAPI dependency for database sessions.
+
+    Uses the module-level singleton session factory — no new engine per request.
+    """
+    session_factory = get_session_factory()
     async with session_factory() as session:
         try:
             yield session
