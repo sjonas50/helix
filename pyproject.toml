@@ -60,7 +60,7 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "T20"]
-ignore = ["E501"]
+ignore = ["E501", "B008"]  # B008: Depends() in defaults is standard FastAPI pattern
 
 [tool.ruff.lint.isort]
 known-first-party = ["helix"]
