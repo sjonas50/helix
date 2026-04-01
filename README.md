@@ -39,7 +39,7 @@ Two intertwined strands: **orchestration** and **memory**.
 │  │   LLM GATEWAY     │              │    INTEGRATION BUS          │ │
 │  │  Claude + OpenAI   │              │  10 Enterprise Providers    │ │
 │  │  Circuit Breaker   │              │  45+ Tools · Risk Levels    │ │
-│  │  Cost Metering     │              │  Composio Adapter           │ │
+│  │  Cost Metering     │              │  Nango Auth + Direct APIs   │ │
 │  └────────┬──────────┘              └─────────────┬───────────────┘ │
 │           │                                       │                 │
 │  ┌────────▼───────────────────────────────────────▼───────────────┐ │
@@ -65,6 +65,14 @@ Two intertwined strands: **orchestration** and **memory**.
 - **Org-scoped memory** with role-based access control (PUBLIC / ROLE_RESTRICTED / CONFIDENTIAL)
 - **PII stripping** before embedding (regex-based, zero-cost — same philosophy as Claude Code's regex sentiment)
 - **Configurable triggers** per org (default: 24hr + 5 sessions + Redis distributed lock)
+- **LLM-powered Gather phase** — Haiku extracts corrections, decisions, and themes from recent memory
+
+### Ambient Memory Pipeline
+- **Webhook ingest** — Slack messages, Jira issues, GitHub PRs flow into memory automatically
+- **Normalize → hash → embed → upsert** — structured pipeline per provider
+- **Content hash dedup** — SHA-256 prevents duplicate embeddings on repeated events
+- **Source tracking** — every memory record knows its `source_system`, `source_id`, and `source_url`
+- **ON CONFLICT upsert** — updated records replace old embeddings, not create duplicates
 
 ### LLM Gateway
 - **Multi-provider**: Anthropic (primary), OpenAI (fallback), Azure/Bedrock ready
@@ -126,7 +134,7 @@ Two intertwined strands: **orchestration** and **memory**.
 | **Database** | PostgreSQL 16 + pgvector |
 | **Cache / Pub-Sub** | Redis 7 |
 | **Background Tasks** | Celery (workflow + dream queues) |
-| **Integrations** | Composio SDK (250+ connectors) |
+| **Auth/Integrations** | Nango (OAuth) + direct API calls via httpx |
 | **Auth** | WorkOS (SSO/SCIM) + python-jose (JWT) |
 | **Observability** | structlog + Sentry + OpenTelemetry |
 | **Deployment** | Docker + Helm |
@@ -186,7 +194,7 @@ curl http://localhost:8000/health
 
 # Run the test suite
 uv run pytest tests/ -v
-# 282 passed
+# 322 passed
 ```
 
 ### Full stack with Docker Compose
@@ -221,6 +229,7 @@ docker compose up -d
 | `POST` | `/api/v1/approvals/{id}/decide` | Yes | Approve/reject action |
 | `GET` | `/api/v1/audit/events` | Yes | Query audit trail |
 | `GET` | `/api/v1/audit/integrity` | Yes | Verify audit chain |
+| `GET` | `/api/v1/usage/stats` | Yes | Token usage statistics |
 | `WS` | `/api/v1/ws?token=<jwt>` | Yes | Real-time notifications (org from JWT) |
 
 ## Project Structure
@@ -232,7 +241,7 @@ helix/
 │   ├── config.py                  # Pydantic Settings (env vars)
 │   ├── observability.py           # structlog + Sentry + OpenTelemetry
 │   ├── api/
-│   │   ├── routes/                # 8 route modules (24 endpoints)
+│   │   ├── routes/                # 9 route modules (25 endpoints)
 │   │   ├── middleware/            # auth, tenant isolation, audit
 │   │   ├── schemas/               # Pydantic request/response models
 │   │   └── deps.py               # FastAPI dependencies
@@ -257,20 +266,29 @@ helix/
 │   │   ├── registry.py           # 10 providers, 45+ tools
 │   │   ├── skills.py             # 10 agent skills
 │   │   ├── bus.py                # Tool dispatch + risk classification
-│   │   ├── composio.py           # Composio SDK adapter
+│   │   ├── nango.py              # Nango OAuth + direct API execution
+│   │   ├── ingest.py             # Webhook → normalize → embed → upsert pipeline
+│   │   ├── composio.py           # Composio SDK adapter (legacy reference)
 │   │   └── webhooks.py           # Inbound event handler
 │   ├── auth/
 │   │   ├── tokens.py             # JWT signing/verification
 │   │   ├── rbac.py               # Role-based access control
 │   │   └── workos.py             # WorkOS SSO/SCIM
+│   ├── memory/
+│   │   ├── store.py              # Memory CRUD + pgvector search
+│   │   ├── dream.py              # 4-phase Dream Cycle
+│   │   ├── gather.py             # LLM-powered signal extraction (Haiku)
+│   │   ├── embeddings.py         # OpenAI embedding generation
+│   │   └── pii.py                # PII detection + stripping
 │   ├── workers/
 │   │   ├── celery_app.py         # Celery config (2 queues)
-│   │   └── dream_tasks.py        # Dream Cycle Celery tasks
+│   │   ├── dream_tasks.py        # Dream Cycle Celery tasks (wired to real DB + LLM)
+│   │   └── ingest_tasks.py       # Webhook ingest Celery tasks
 │   └── db/
 │       ├── models.py             # 19 SQLAlchemy ORM models
 │       ├── engine.py             # Async engine singleton
 │       └── migrations/           # Alembic (pgvector + RLS)
-├── tests/                         # 282 tests across 20 files
+├── tests/                         # 322 backend + 87 frontend tests
 ├── deploy/helm/helix/             # Kubernetes Helm chart
 ├── scripts/load_test.py           # Async load testing
 ├── docker-compose.yml             # 6 services
@@ -296,7 +314,7 @@ These decisions are informed by analysis of Anthropic's Claude Code production s
 | 5 | Transparent model fallback | Silent Opus → Sonnet downgrade | Audit events, configurable per org |
 | 6 | RLS as defense-in-depth | No tenant isolation (single-user) | Even SQL injection can't cross tenant boundaries |
 | 7 | Configurable hierarchy depth | Hard-coded 1 level | Default 2, max 4, enforced in engine not prompt |
-| 8 | Composio for integrations | Bespoke per-tool implementations | 250+ managed connectors |
+| 8 | Nango for OAuth + direct API calls | Composio cloud (vendor lock-in, no self-host) | Token ownership, on-prem safe, httpx for execution |
 | 9 | Append-only audit with chain hash | No audit trail | SOC 2 tamper detection |
 | 10 | Separate Celery queues | Forked subagent in main process | Dream cycle never blocks real-time workflows |
 

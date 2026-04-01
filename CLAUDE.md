@@ -16,7 +16,7 @@ See `docs/architecture.md` for the full mapping.
 - **PostgreSQL 16 + pgvector** — Data + vector embeddings
 - **Redis** — Cache, pub/sub, rate limiting, task queues
 - **Celery** — Background workers (dream cycle, workflow execution)
-- **Composio/Nango** — SaaS integration connectors
+- **Nango** — OAuth token management (self-hosted), direct API calls via httpx
 - **WorkOS** — Enterprise SSO/SCIM
 - **Docker + Helm** — Deployment
 
@@ -56,7 +56,7 @@ uv run celery -A src.helix.workers.celery_app beat -l info
 5. Transparent model fallback over silent downgrades — audit events, configurable per org
 6. RLS as defense-in-depth — even SQL injection can't cross tenant boundaries
 7. Configurable agent hierarchy depth (default 2, max 4) — Claude Code hard-codes 1 level
-8. Composio/Nango for integrations — 250+ managed connectors vs building OAuth from scratch
+8. Nango for OAuth + direct API calls — token ownership, self-hostable, on-prem safe
 9. Append-only audit trail with chain hashing — SOC 2 tamper detection
 10. Separate Celery queues for real-time vs background — dream cycle never blocks workflows
 
@@ -70,7 +70,7 @@ src/helix/
 ├── orchestration/       # LangGraph coordinator, workers, HITL, speculation
 ├── memory/              # Dream cycle, vector store, PII stripping
 ├── llm/                 # Multi-provider gateway, fallback, compaction, metering
-├── integrations/        # Tool dispatch, Composio adapter, webhooks
+├── integrations/        # Tool registry, Nango auth, webhook ingest pipeline
 ├── auth/                # WorkOS SSO, RBAC, JWT
 └── workers/             # Celery tasks (workflow + dream)
 ```
