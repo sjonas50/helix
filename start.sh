@@ -32,7 +32,7 @@ asyncio.run(seed())
 " 2>/dev/null
 
 # Start API in background
-uv run uvicorn helix.main:app --port 8000 &
+uv run uvicorn helix.main:app --port 8000 --reload &
 API_PID=$!
 sleep 2
 
