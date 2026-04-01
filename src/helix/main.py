@@ -7,6 +7,7 @@ from helix.api.routes import (
     agents,
     approvals,
     audit,
+    generate,
     integrations,
     memory,
     orgs,
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(integrations.router, prefix="/api/v1")
     app.include_router(audit.router, prefix="/api/v1")
     app.include_router(usage.router, prefix="/api/v1")
+    app.include_router(generate.router, prefix="/api/v1")
     app.include_router(ws.router)
 
     @app.get("/health")

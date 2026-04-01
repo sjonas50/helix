@@ -54,16 +54,23 @@ describe("AutonomyDial", () => {
   });
 });
 
+// NLCreator needs QueryClientProvider since it uses useMutation
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function withQueryClient(ui: React.ReactElement) {
+  return <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>;
+}
+
 describe("NLCreator", () => {
   it("renders input and submit button", () => {
-    render(<NLCreator />);
+    render(withQueryClient(<NLCreator />));
 
     expect(screen.getByPlaceholderText("Describe what you want to automate...")).toBeDefined();
     expect(screen.getByRole("button", { name: /^Generate$/i })).toBeDefined();
   });
 
   it("renders example prompts", () => {
-    render(<NLCreator />);
+    render(withQueryClient(<NLCreator />));
 
     expect(screen.getByText("Sales")).toBeDefined();
     expect(screen.getByText("Support")).toBeDefined();
@@ -71,7 +78,7 @@ describe("NLCreator", () => {
   });
 
   it("disables submit when input is empty", () => {
-    render(<NLCreator />);
+    render(withQueryClient(<NLCreator />));
 
     const buttons = screen.getAllByRole("button");
     const generateBtn = buttons.find(b => b.textContent?.trim() === "Generate");
