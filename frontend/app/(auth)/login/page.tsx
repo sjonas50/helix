@@ -31,7 +31,7 @@ export default function LoginPage() {
     setError(null);
     try {
       // Fetch a real signed JWT from the backend dev endpoint
-      const res = await fetch("http://localhost:8000/api/v1/dev/token", {
+      const res = await fetch("/api/proxy/dev/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
