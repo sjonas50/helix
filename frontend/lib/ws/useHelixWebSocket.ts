@@ -5,6 +5,7 @@ import useWebSocket from "react-use-websocket";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useWSStore } from "@/lib/store/wsStore";
+import { isTokenExpired } from "@/lib/auth/tokenUtils";
 import type { WSEvent } from "@/types/ws";
 
 export function useHelixWebSocket() {
@@ -12,7 +13,8 @@ export function useHelixWebSocket() {
   const qc = useQueryClient();
   const setConnected = useWSStore((s) => s.setConnected);
 
-  const wsUrl = token
+  // Don't attempt WebSocket connection if token is missing or expired
+  const wsUrl = token && !isTokenExpired(token)
     ? `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/api/v1/ws"}?token=${token}`
     : null;
 

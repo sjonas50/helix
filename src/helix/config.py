@@ -79,6 +79,12 @@ class Settings(BaseSettings):
     speculation_enabled: bool = True
     speculation_default_depth: int = 2
 
+    # CORS
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+
+    # CORS
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+
     # Observability
     log_level: str = "INFO"
     sentry_dsn: str | None = None

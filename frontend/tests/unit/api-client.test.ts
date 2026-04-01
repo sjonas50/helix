@@ -14,6 +14,11 @@ vi.mock("@/lib/auth/useAuth", () => ({
   },
 }));
 
+// Mock tokenUtils so "test-token" is treated as valid
+vi.mock("@/lib/auth/tokenUtils", () => ({
+  isTokenExpired: () => false,
+}));
+
 describe("apiClient", () => {
   beforeEach(() => {
     mockToken = "test-token";
