@@ -1,6 +1,7 @@
 """Tests for CORS middleware configuration."""
 
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,6 +23,14 @@ def auth_headers() -> dict[str, str]:
     )
     token = encode_token(claims)
     return {"Authorization": f"Bearer {token}"}
+
+
+def _patch_workflows_list():
+    """Patch the list_workflows endpoint to avoid DB calls in CORS tests."""
+    return patch(
+        "helix.api.routes.workflows.list_workflows",
+        return_value=[],
+    )
 
 
 class TestCORSPreflight:
@@ -50,16 +59,41 @@ class TestCORSPreflight:
 
 
 class TestCORSOnResponses:
+    @patch("helix.api.routes.workflows.get_session_factory")
     def test_get_with_origin_returns_allow_origin(
-        self, auth_headers: dict[str, str]
+        self, mock_factory: MagicMock, auth_headers: dict[str, str]
     ) -> None:
+        # Build mock: get_session_factory() returns a callable that returns async ctx mgr
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.fetchall = MagicMock(return_value=[])
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        ctx_mgr = MagicMock()
+        ctx_mgr.__aenter__ = AsyncMock(return_value=mock_session)
+        ctx_mgr.__aexit__ = AsyncMock(return_value=False)
+
+        mock_factory.return_value = MagicMock(return_value=ctx_mgr)
+
         headers = {**auth_headers, "Origin": ORIGIN}
         r = client.get("/api/v1/workflows/", headers=headers)
         assert r.status_code == 200
         assert r.headers["access-control-allow-origin"] == ORIGIN
 
+    @patch("helix.api.routes.workflows.get_session_factory")
     def test_get_without_origin_has_no_cors_header(
-        self, auth_headers: dict[str, str]
+        self, mock_factory: MagicMock, auth_headers: dict[str, str]
     ) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.fetchall = MagicMock(return_value=[])
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        ctx_mgr = MagicMock()
+        ctx_mgr.__aenter__ = AsyncMock(return_value=mock_session)
+        ctx_mgr.__aexit__ = AsyncMock(return_value=False)
+
+        mock_factory.return_value = MagicMock(return_value=ctx_mgr)
+
         r = client.get("/api/v1/workflows/", headers=auth_headers)
         assert "access-control-allow-origin" not in r.headers

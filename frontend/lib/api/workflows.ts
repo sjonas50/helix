@@ -29,3 +29,33 @@ export function useCreateWorkflow() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["workflows"] }),
   });
 }
+
+export interface DeployWorkflowRequest {
+  name: string;
+  description: string;
+  workflow_json: string;
+}
+
+export function useDeployWorkflow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: DeployWorkflowRequest) =>
+      apiClient<{ id: string; status: string; name: string }>("/workflows/", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["workflows"] }),
+  });
+}
+
+export function useRunWorkflow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (workflowId: string) =>
+      apiClient<{ workflow_id: string; status: string; message: string }>(
+        `/workflows/${workflowId}/run`,
+        { method: "POST" }
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["workflows"] }),
+  });
+}

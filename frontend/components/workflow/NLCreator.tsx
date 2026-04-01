@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Sparkles, ArrowRight, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, Sparkles, ArrowRight, AlertTriangle, CheckCircle2, Rocket, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useWorkflowStore } from "@/lib/store/workflowStore";
 import { useGenerateWorkflow } from "@/lib/api/generate";
+import { useDeployWorkflow, useRunWorkflow } from "@/lib/api/workflows";
 import type { GeneratedWorkflow, WorkflowNode } from "@/lib/api/generate";
 
 const EXAMPLE_PROMPTS = [
@@ -67,13 +68,30 @@ export function NLCreator({ onPreviewCanvas }: NLCreatorProps) {
 
   const [result, setResult] = useState<GeneratedWorkflow | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deployedId, setDeployedId] = useState<string | null>(null);
 
   const generateMutation = useGenerateWorkflow();
+  const deployMutation = useDeployWorkflow();
+  const runMutation = useRunWorkflow();
+
+  const handleDeploy = () => {
+    if (!result) return;
+    deployMutation.mutate(
+      { name: result.name, description: result.description, workflow_json: JSON.stringify(result) },
+      { onSuccess: (data) => setDeployedId(data.id) }
+    );
+  };
+
+  const handleRun = () => {
+    if (!deployedId) return;
+    runMutation.mutate(deployedId);
+  };
 
   const handleSubmit = async () => {
     if (!nlInput.trim()) return;
     setResult(null);
     setError(null);
+    setDeployedId(null);
 
     generateMutation.mutate(nlInput.trim(), {
       onSuccess: (data) => {
@@ -193,6 +211,22 @@ export function NLCreator({ onPreviewCanvas }: NLCreatorProps) {
                 Preview on Canvas
                 <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
+            )}
+
+            <Button variant="default" onClick={handleDeploy} disabled={deployMutation.isPending || !!deployedId}>
+              {deployMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+              {deployedId ? "Deployed" : "Deploy Workflow"}
+            </Button>
+
+            {deployedId && (
+              <Button onClick={handleRun} disabled={runMutation.isPending}>
+                {runMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                Run Now
+              </Button>
+            )}
+
+            {runMutation.isSuccess && (
+              <Badge className="bg-green-100 text-green-800">Executing...</Badge>
             )}
           </div>
         </div>

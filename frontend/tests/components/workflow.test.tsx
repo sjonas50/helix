@@ -87,6 +87,16 @@ describe("NLCreator", () => {
   });
 });
 
+describe("NLCreator deploy button", () => {
+  it("does not render deploy button before workflow is generated", () => {
+    render(withQueryClient(<NLCreator />));
+
+    const allButtons = screen.getAllByRole("button");
+    const deployBtn = allButtons.find(b => b.textContent?.includes("Deploy"));
+    expect(deployBtn).toBeUndefined();
+  });
+});
+
 describe("Canvas", () => {
   it("renders without crashing", async () => {
     // Dynamic import after mock is set up

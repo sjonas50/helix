@@ -9,9 +9,34 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { GitBranch, CheckCircle, Activity, Zap } from "lucide-react";
+import { useWorkflows } from "@/lib/api/workflows";
+import { useApprovals } from "@/lib/api/approvals";
+import type { WorkflowStatus } from "@/types/api";
+
+const STATUS_STYLES: Record<WorkflowStatus, string> = {
+  PLANNING: "bg-blue-100 text-blue-700",
+  EXECUTING: "bg-yellow-100 text-yellow-700",
+  AWAITING_APPROVAL: "bg-orange-100 text-orange-700",
+  VERIFYING: "bg-purple-100 text-purple-700",
+  COMPLETE: "bg-green-100 text-green-700",
+  FAILED: "bg-red-100 text-red-700",
+};
 
 export default function DashboardPage() {
+  const { data: workflows, isLoading: workflowsLoading } = useWorkflows();
+  const { data: approvals, isLoading: approvalsLoading } = useApprovals();
+
+  const activeWorkflows = workflows?.filter(
+    (w) => w.status === "EXECUTING" || w.status === "AWAITING_APPROVAL" || w.status === "PLANNING"
+  ) || [];
+
+  const pendingApprovals = approvals?.filter((a) => a.status === "PENDING") || [];
+
+  const recentWorkflows = workflows?.slice(0, 5) || [];
+
   return (
     <div className="space-y-6">
       <div>
@@ -31,8 +56,17 @@ export default function DashboardPage() {
             <GitBranch className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <CardDescription>2 executing, 1 awaiting approval</CardDescription>
+            {workflowsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{activeWorkflows.length}</div>
+                <CardDescription>
+                  {activeWorkflows.filter((w) => w.status === "EXECUTING").length} executing,{" "}
+                  {activeWorkflows.filter((w) => w.status === "AWAITING_APPROVAL").length} awaiting approval
+                </CardDescription>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -45,29 +79,41 @@ export default function DashboardPage() {
             <CheckCircle className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
-            <CardDescription>
-              <Link
-                href="/approvals"
-                className="text-primary underline-offset-4 hover:underline"
-              >
-                Review approvals
-              </Link>
-            </CardDescription>
+            {approvalsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{pendingApprovals.length}</div>
+                <CardDescription>
+                  <Link
+                    href="/approvals"
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    Review approvals
+                  </Link>
+                </CardDescription>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
+        {/* Total Workflows */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
-              Recent Activity
+              Total Workflows
             </CardTitle>
             <Activity className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
-            <CardDescription>Events in the last hour</CardDescription>
+            {workflowsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{workflows?.length || 0}</div>
+                <CardDescription>All time</CardDescription>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -82,57 +128,58 @@ export default function DashboardPage() {
           <CardContent>
             <Link href="/workflows">
               <Button variant="default" size="sm" className="w-full">
-                Create Workflow
+                New Workflow
               </Button>
             </Link>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Activity List */}
+      {/* Recent Workflows */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+          <CardTitle>Recent Workflows</CardTitle>
           <CardDescription>
-            Latest events across your workflows and agents.
+            Latest workflows across your organization.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {[
-              {
-                time: "2 min ago",
-                text: "Workflow WF-001 moved to EXECUTING phase",
-              },
-              {
-                time: "5 min ago",
-                text: "Approval request created for high-risk action",
-              },
-              {
-                time: "12 min ago",
-                text: "Agent researcher-03 completed data collection",
-              },
-              {
-                time: "18 min ago",
-                text: "New integration connected: Slack",
-              },
-              {
-                time: "30 min ago",
-                text: "Workflow WF-002 completed successfully",
-              },
-            ].map((event, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-3 text-sm"
-              >
-                <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
-                <div className="flex-1">
-                  <p>{event.text}</p>
-                  <p className="text-xs text-muted-foreground">{event.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {workflowsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : recentWorkflows.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              No workflows yet.{" "}
+              <Link href="/workflows" className="text-primary underline-offset-4 hover:underline">
+                Create your first workflow
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentWorkflows.map((workflow) => (
+                <Link
+                  key={workflow.id}
+                  href={`/workflows/${workflow.id}`}
+                  className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      {workflow.name || `Workflow #${workflow.id.slice(0, 8)}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Created {new Date(workflow.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Badge className={STATUS_STYLES[workflow.status] || ""}>
+                    {workflow.status}
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

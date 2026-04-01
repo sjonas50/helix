@@ -1,6 +1,7 @@
 """Tests for API routes with authentication."""
 
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -42,7 +43,19 @@ class TestAuthEnforcement:
         )
         assert r.status_code == 401
 
-    def test_authenticated_request_succeeds(self, auth_headers: dict) -> None:
+    @patch("helix.api.routes.workflows.get_session_factory")
+    def test_authenticated_request_succeeds(
+        self, mock_factory: MagicMock, auth_headers: dict
+    ) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.fetchall.return_value = []
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_factory.return_value = MagicMock(return_value=mock_session_ctx)
+
         r = client.get("/api/v1/workflows/", headers=auth_headers)
         assert r.status_code == 200
 
@@ -77,14 +90,34 @@ class TestOrgRoutes:
 
 
 class TestWorkflowRoutes:
-    def test_list_workflows_empty(self, auth_headers: dict) -> None:
+    @patch("helix.api.routes.workflows.get_session_factory")
+    def test_list_workflows_empty(self, mock_factory: MagicMock, auth_headers: dict) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.fetchall.return_value = []
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_factory.return_value = MagicMock(return_value=mock_session_ctx)
+
         r = client.get("/api/v1/workflows/", headers=auth_headers)
         assert r.status_code == 200
         assert r.json() == []
 
-    def test_create_workflow_not_implemented(self, auth_headers: dict) -> None:
+    @patch("helix.api.routes.workflows.get_session_factory")
+    def test_create_workflow(self, mock_factory: MagicMock, auth_headers: dict) -> None:
+        mock_session = AsyncMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_factory.return_value = MagicMock(return_value=mock_session_ctx)
+
         r = client.post("/api/v1/workflows/", json={}, headers=auth_headers)
-        assert r.status_code == 501
+        assert r.status_code == 201
+        data = r.json()
+        assert data["status"] == "PLANNING"
+        assert "id" in data
 
 
 class TestMemoryRoutes:
@@ -103,12 +136,32 @@ class TestMemoryRoutes:
 
 
 class TestApprovalRoutes:
-    def test_list_approvals_empty(self, auth_headers: dict) -> None:
+    @patch("helix.api.routes.approvals.get_session_factory")
+    def test_list_approvals_empty(self, mock_factory: MagicMock, auth_headers: dict) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.fetchall.return_value = []
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_factory.return_value = MagicMock(return_value=mock_session_ctx)
+
         r = client.get("/api/v1/approvals/", headers=auth_headers)
         assert r.status_code == 200
         assert r.json() == []
 
-    def test_decide_approval_not_found(self, auth_headers: dict) -> None:
+    @patch("helix.api.routes.approvals.get_session_factory")
+    def test_decide_approval_not_found(self, mock_factory: MagicMock, auth_headers: dict) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.fetchone.return_value = None
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_factory.return_value = MagicMock(return_value=mock_session_ctx)
+
         r = client.post(
             "/api/v1/approvals/00000000-0000-0000-0000-000000000000/decide",
             json={"decision": "APPROVED", "reason": "test"},

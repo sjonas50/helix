@@ -35,6 +35,8 @@ export type WorkflowStatus =
 export interface Workflow {
   id: string;
   org_id: string;
+  name: string;
+  description: string;
   template_id: string | null;
   status: WorkflowStatus;
   coordinator_agent_id: string | null;
