@@ -4,22 +4,50 @@ import { create } from "zustand";
 import type { AuthUser, AuthSession } from "@/types/auth";
 import { decodeJWTPayload, isTokenExpired } from "@/lib/auth/tokenUtils";
 
+const TOKEN_KEY = "helix_token";
+
+function loadPersistedToken(): { user: AuthUser | null; accessToken: string | null; isAuthenticated: boolean } {
+  if (typeof window === "undefined") {
+    return { user: null, accessToken: null, isAuthenticated: false };
+  }
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token || isTokenExpired(token)) {
+    localStorage.removeItem(TOKEN_KEY);
+    return { user: null, accessToken: null, isAuthenticated: false };
+  }
+  const payload = decodeJWTPayload(token);
+  if (!payload) {
+    localStorage.removeItem(TOKEN_KEY);
+    return { user: null, accessToken: null, isAuthenticated: false };
+  }
+  return {
+    user: {
+      id: payload.sub as string,
+      org_id: payload.org_id as string,
+      email: (payload.email as string) || "",
+      display_name: (payload.display_name as string) || null,
+      roles: (payload.roles as string[]) || [],
+    },
+    accessToken: token,
+    isAuthenticated: true,
+  };
+}
+
 interface AuthStore extends AuthSession {
   login: (token: string) => void;
   logout: () => void;
-  /** Check if the current access token is expired (with 30s buffer). */
   isTokenExpired: () => boolean;
-  /** Return the token only if it is still valid; otherwise return null. */
   getValidToken: () => string | null;
 }
 
+const persisted = loadPersistedToken();
+
 export const useAuth = create<AuthStore>((set, get) => ({
-  user: null,
-  accessToken: null,
-  isAuthenticated: false,
+  user: persisted.user,
+  accessToken: persisted.accessToken,
+  isAuthenticated: persisted.isAuthenticated,
   isLoading: false,
   login: (token: string) => {
-    // Decode JWT payload (base64url-safe) — no verification on client side
     try {
       const payload = decodeJWTPayload(token);
       if (!payload) throw new Error("Invalid token payload");
@@ -30,6 +58,9 @@ export const useAuth = create<AuthStore>((set, get) => ({
         display_name: (payload.display_name as string) || null,
         roles: (payload.roles as string[]) || [],
       };
+      if (typeof window !== "undefined") {
+        localStorage.setItem(TOKEN_KEY, token);
+      }
       set({
         user,
         accessToken: token,
@@ -45,8 +76,12 @@ export const useAuth = create<AuthStore>((set, get) => ({
       });
     }
   },
-  logout: () =>
-    set({ user: null, accessToken: null, isAuthenticated: false }),
+  logout: () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+    set({ user: null, accessToken: null, isAuthenticated: false });
+  },
   isTokenExpired: () => {
     const token = get().accessToken;
     if (!token) return true;
