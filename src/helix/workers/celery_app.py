@@ -23,6 +23,7 @@ celery_app.conf.update(
     task_routes={
         "helix.workers.workflow_tasks.*": {"queue": "workflow"},
         "helix.workers.dream_tasks.*": {"queue": "dream"},
+        "helix.workers.ingest_tasks.*": {"queue": "workflow"},
     },
     beat_schedule={
         "check-dream-triggers": {

@@ -87,6 +87,14 @@ async def process_webhook(
 
     # In production: dispatch workflow via Celery
     logger.info("webhook.trigger", provider=event.provider, event_type=event.event_type)
+
+    # Dispatch to memory ingest pipeline (async via Celery)
+    from helix.workers.ingest_tasks import ingest_webhook
+
+    ingest_webhook.delay(
+        str(event.integration_id), event.provider, event.event_type, event.payload
+    )
+
     return WebhookResult(
         accepted=True,
         workflow_triggered=True,

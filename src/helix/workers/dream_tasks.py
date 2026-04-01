@@ -46,11 +46,20 @@ def _run_dream_sync(org_id: str) -> dict:
                 for row in rows
             ]
 
-            # Run dream cycle (no signals for now — will add LLM extraction later)
+            # Extract signals from recent memories using Haiku
+            from helix.memory.gather import extract_signals_from_memories
+
+            recent = [
+                {"topic": row[2], "content": row[3], "source_system": "memory"}
+                for row in rows
+                if row[8] is None  # valid_until is None (active records)
+            ]
+            signals = await extract_signals_from_memories(recent[-50:])
+
             dream_result = run_dream_cycle(
                 org_id=uuid.UUID(org_id),
                 existing_memories=existing,
-                session_signals=[],
+                session_signals=signals,
                 triggered_by="celery",
             )
 
