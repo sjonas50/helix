@@ -29,6 +29,8 @@ class TokenClaims(BaseModel):
     org_id: str
     roles: list[str]
     token_type: str  # user | agent
+    email: str = ""
+    display_name: str | None = None
     exp: datetime
     iat: datetime
 
@@ -45,6 +47,8 @@ def create_token_claims(
     roles: list[str],
     token_type: str = "user",
     ttl_minutes: int | None = None,
+    email: str = "",
+    display_name: str | None = None,
 ) -> TokenClaims:
     """Create JWT claims for a user or agent token.
 
@@ -60,6 +64,8 @@ def create_token_claims(
         org_id=str(org_id),
         roles=roles,
         token_type=token_type,
+        email=email,
+        display_name=display_name,
         exp=now + timedelta(minutes=ttl_minutes),
         iat=now,
     )
@@ -72,6 +78,8 @@ def encode_token(claims: TokenClaims) -> str:
         "org_id": claims.org_id,
         "roles": claims.roles,
         "token_type": claims.token_type,
+        "email": claims.email,
+        "display_name": claims.display_name,
         "exp": claims.exp,
         "iat": claims.iat,
     }
@@ -96,6 +104,8 @@ def decode_token(token: str) -> TokenClaims:
         org_id=payload["org_id"],
         roles=payload["roles"],
         token_type=payload["token_type"],
+        email=payload.get("email", ""),
+        display_name=payload.get("display_name"),
         exp=datetime.fromtimestamp(payload["exp"], tz=UTC),
         iat=datetime.fromtimestamp(payload["iat"], tz=UTC),
     )

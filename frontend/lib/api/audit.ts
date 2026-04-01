@@ -23,7 +23,7 @@ export function useAuditLog(params?: AuditParams) {
       if (params?.resource_type)
         searchParams.set("resource_type", params.resource_type);
       const qs = searchParams.toString();
-      return apiClient<AuditResponse>(`/audit/${qs ? `?${qs}` : ""}`);
+      return apiClient<AuditResponse>(`/audit/events${qs ? `?${qs}` : ""}`);
     },
   });
 }
@@ -31,8 +31,9 @@ export function useAuditLog(params?: AuditParams) {
 export function useUndoAction() {
   const qc = useQueryClient();
   return useMutation({
+    // Note: undo endpoint not yet implemented on backend — placeholder
     mutationFn: (eventId: string) =>
-      apiClient<void>(`/audit/${eventId}/undo`, { method: "POST" }),
+      apiClient<void>(`/audit/events/${eventId}/undo`, { method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["audit"] }),
   });
 }

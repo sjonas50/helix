@@ -8,7 +8,7 @@ export function useAgents(workflowId: string) {
   return useQuery({
     queryKey: ["agents", workflowId],
     queryFn: () =>
-      apiClient<Agent[]>(`/workflows/${workflowId}/agents`),
+      apiClient<Agent[]>(`/agents/workflow/${workflowId}`),
     enabled: !!workflowId,
   });
 }
