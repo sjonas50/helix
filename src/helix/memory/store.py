@@ -39,6 +39,10 @@ class MemoryEntry(BaseModel):
     access_level: str = "PUBLIC"  # PUBLIC | ROLE_RESTRICTED | CONFIDENTIAL
     allowed_roles: list[str] = Field(default_factory=list)
     embedding: list[float] | None = None  # 1536-dim vector
+    content_hash: str | None = None  # SHA-256 for dedup
+    source_system: str | None = None  # slack, salesforce, jira, etc.
+    source_id: str | None = None  # External record ID
+    source_url: str | None = None  # Link back to original
     version: int = 1
     valid_from: datetime = Field(default_factory=utcnow)
     valid_until: datetime | None = None

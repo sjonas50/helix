@@ -295,6 +295,7 @@ class MemoryRecord(Base):
     __tablename__ = "memory_records"
     __table_args__ = (
         Index("idx_memory_org_topic", "org_id", "topic"),
+        UniqueConstraint("org_id", "source_system", "source_id", name="uq_memory_source"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -319,6 +320,11 @@ class MemoryRecord(Base):
     source_session_ids: Mapped[list[uuid.UUID] | None] = mapped_column(
         ARRAY(UUID(as_uuid=True)), server_default="{}"
     )
+    # Ambient memory: tracks where data came from for dedup and provenance
+    content_hash: Mapped[str | None] = mapped_column(String(64))  # SHA-256
+    source_system: Mapped[str | None] = mapped_column(String(64))  # slack, salesforce, etc.
+    source_id: Mapped[str | None] = mapped_column(String(512))  # External record ID
+    source_url: Mapped[str | None] = mapped_column(Text)  # Link back to original
     # Note: pgvector column created via raw SQL in migration (vector(1536))
     # embedding column is not mapped here — accessed via raw SQL for vector ops
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
