@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,39 +15,37 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth/useAuth";
 
-function createMockJWT(): string {
-  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = btoa(
-    JSON.stringify({
-      sub: "usr_dev_001",
-      org_id: "org_dev_001",
-      email: "dev@helix.local",
-      display_name: "Dev User",
-      roles: ["admin", "operator"],
-      token_type: "user",
-      exp: Math.floor(Date.now() / 1000) + 86400,
-      iat: Math.floor(Date.now() / 1000),
-    })
-  );
-  const signature = btoa("dev-signature");
-  return `${header}.${payload}.${signature}`;
-}
-
 export default function LoginPage() {
   const [orgSlug, setOrgSlug] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const login = useAuth((s) => s.login);
   const router = useRouter();
 
   function handleSSO() {
-    // In production: redirect to WorkOS AuthKit with org slug
-    // window.location.href = `/api/auth/sso?org=${orgSlug}`;
     alert(`SSO redirect for org "${orgSlug}" — not configured in development.`);
   }
 
-  function handleDevLogin() {
-    const token = createMockJWT();
-    login(token);
-    router.push("/");
+  async function handleDevLogin() {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch a real signed JWT from the backend dev endpoint
+      const res = await fetch("http://localhost:8000/api/v1/dev/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to get dev token: ${res.status}`);
+      }
+      const data = await res.json();
+      login(data.token);
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to connect to backend");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -86,9 +85,13 @@ export default function LoginPage() {
               </span>
             </div>
           </div>
-          <Button variant="outline" className="w-full" onClick={handleDevLogin}>
+          <Button variant="outline" className="w-full" onClick={handleDevLogin} disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Dev Login
           </Button>
+          {error && (
+            <p className="text-sm text-red-600 text-center">{error}</p>
+          )}
         </CardContent>
       </Card>
     </div>
